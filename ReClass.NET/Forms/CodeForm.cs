@@ -1,18 +1,20 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
-using System.IO;
+using System.Drawing;
+using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using ColorCode;
 using ColorCode.Parsing;
+using ColorCode.Styling;
 using ReClassNET.CodeGenerator;
 using ReClassNET.Extensions;
 using ReClassNET.Logger;
 using ReClassNET.Nodes;
 using ReClassNET.Project;
 using ReClassNET.UI;
+using ReClassNET.Util;
 using ReClassNET.Util.Rtf;
 
 namespace ReClassNET.Forms
@@ -31,19 +33,9 @@ namespace ReClassNET.Forms
 
 			var code = generator.GenerateCode(classes, enums, logger);
 
-			var buffer = new StringBuilder(code.Length * 2);
-			using (var writer = new StringWriter(buffer))
-			{
-				new CodeColorizer().Colorize(
-					code,
-					generator.Language == Language.Cpp ? Languages.Cpp : Languages.CSharp,
-					new RtfFormatter(),
-					StyleSheets.Default,
-					writer
-				);
-			}
-
-			codeRichTextBox.Rtf = buffer.ToString();
+			RtfFormatter formatter = new();
+			codeRichTextBox.Rtf =
+				formatter.GetFormattedOutput(code, (generator.Language is Language.Cpp ? LegacyCpp.Instance : LegacyCSharp.Instance));
 		}
 
 		protected override void OnLoad(EventArgs e)
@@ -61,15 +53,35 @@ namespace ReClassNET.Forms
 		}
 	}
 
-	internal class RtfFormatter : IFormatter
+	internal sealed class RtfFormatter(StyleDictionary Styles = null, ILanguageParser languageParser = null) : CodeColorizerBase(Styles, languageParser)
 	{
 		private readonly RtfBuilder builder = new RtfBuilder(RtfFont.Consolas, 20);
 
-		public void Write(string parsedSourceCode, IList<Scope> scopes, IStyleSheet styleSheet, TextWriter textWriter)
+		private static Color ParseFromHex(string color)
+		{
+			/* Trim leading hashtag. */
+			ReadOnlySpan<char> hex = color.AsSpan(1);
+
+			byte a = 255;
+			/* If `Length` is 8, assume we were given a color in ARGB format. */
+			if (hex.Length is 8)
+			{
+				a = byte.Parse(hex[0..2], NumberStyles.HexNumber);
+				hex = hex[2..];
+			}
+
+			byte r = byte.Parse(hex[0..2], NumberStyles.HexNumber);
+			byte g = byte.Parse(hex[2..4], NumberStyles.HexNumber);
+			byte b = byte.Parse(hex[4..6], NumberStyles.HexNumber);
+
+			return Color.FromArgb(a, r, g, b);
+		}
+
+		protected override void Write(string parsedSourceCode, IList<Scope> scopes)
 		{
 			if (scopes.Any())
 			{
-				builder.SetForeColor(styleSheet.Styles[scopes.First().Name].Foreground).Append(parsedSourceCode);
+				builder.SetForeColor(ParseFromHex(Styles[scopes.First().Name].Foreground)).Append(parsedSourceCode);
 			}
 			else
 			{
@@ -77,14 +89,11 @@ namespace ReClassNET.Forms
 			}
 		}
 
-		public void WriteHeader(IStyleSheet styleSheet, ILanguage language, TextWriter textWriter)
+		public string GetFormattedOutput(string sourceCode, ILanguage language)
 		{
-
-		}
-
-		public void WriteFooter(IStyleSheet styleSheet, ILanguage language, TextWriter textWriter)
-		{
-			textWriter.Write(builder.ToString());
+			languageParser.Parse(sourceCode, language, (string parsedSourceCode, IList<Scope> captures) => Write(parsedSourceCode, captures));
+			/* `Write` outputs to our `RtfBuilder`, so we can execute `ToString` to retrieve the formatted output and provide it back to the caller. */
+			return builder.ToString();
 		}
 	}
 }

@@ -211,12 +211,16 @@ namespace ReClassNET.Controls
 			}
 		}
 
+		[DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
 		public ContextMenuStrip ClassesContextMenuStrip { get; set; }
 
+		[DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
 		public ContextMenuStrip ClassContextMenuStrip { get; set; }
 
+		[DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
 		public ContextMenuStrip EnumsContextMenuStrip { get; set; }
 
+		[DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
 		public ContextMenuStrip EnumContextMenuStrip { get; set; }
 
 		public ProjectView()

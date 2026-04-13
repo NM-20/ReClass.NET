@@ -2,8 +2,8 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
+using System.Text;
 using System.Windows.Forms;
-using Microsoft.SqlServer.MessageBox;
 using ReClassNET.Core;
 using ReClassNET.Forms;
 using ReClassNET.Logger;
@@ -65,6 +65,8 @@ namespace ReClassNET
 
 			CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 
+			Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
 			Settings = SettingsSerializer.Load();
 			Logger = new GuiLogger();
 
@@ -103,15 +105,13 @@ namespace ReClassNET
 		/// <param name="ex">The exception.</param>
 		public static void ShowException(Exception ex)
 		{
-			ex.HelpLink = Constants.HelpUrl;
-
-			var msg = new ExceptionMessageBox(ex)
-			{
-				Beep = false,
-				ShowToolBar = true,
-				Symbol = ExceptionMessageBoxSymbol.Error
-			};
-			msg.Show(null);
+/* TODO: Replace this with a custom ReClass.NET-styled exception window. */
+MessageBox.Show(
+$"""
+An exception has occurred:
+{ex}
+For more assistance, see "{Constants.HelpUrl}".
+""", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Error);
 		}
 	}
 }
